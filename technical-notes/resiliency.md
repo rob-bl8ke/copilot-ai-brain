@@ -605,3 +605,315 @@ spring-retry
 7. Use retry topics, not blocking retries in listeners.
 8. Always configure timeouts.
 
+
+#### ❓ When calling a REST api from another service I can build in resilience using a backoff retry or a circuit breaker approach.  What about database requests such as updates and inserts. Is resilience built-in to the connections or do I have to build resilience in to avoid issues with intermittent network issues?
+
+---
+Great question. The short answer is: **resilience is not automatically built into database requests**, and **you do need to build in retry logic explicitly**, just like with REST calls—especially when you're dealing with intermittent network issues or transient failures.
+
+### 🔧 Key Differences: REST API vs Database Requests
+
+| Aspect                 | REST API (over HTTP)         | Database Request (via JDBC, etc.)      |
+| ---------------------- | ---------------------------- | -------------------------------------- |
+| Typical transport      | HTTP over TCP                | Proprietary protocol over TCP          |
+| Built-in retries?      | Rarely                       | No (except some driver-specific logic) |
+| Circuit breakers?      | Must be implemented manually | Must be implemented manually           |
+| Resilience pattern use | Common (retry, CB, timeout)  | Less common but still essential        |
+
+---
+
+### ✅ What You Should Do for DB Resilience
+
+#### 1. **Implement Retry Logic (with Backoff)**
+
+* **Why**: Transient errors like timeouts, deadlocks, or dropped connections can occur.
+* **How**:
+
+  * Use a library (e.g. [Spring Retry](https://docs.spring.io/spring-retry/docs/current/reference/html/) if using Spring).
+  * Use exponential backoff with jitter to avoid stampeding.
+
+```java
+@Retryable(
+    value = { SQLException.class },
+    maxAttempts = 3,
+    backoff = @Backoff(delay = 2000, multiplier = 2))
+public void updateRow(...) {
+    // your JDBC or JPA update logic
+}
+```
+
+#### 2. **Use Connection Pooling Wisely**
+
+* Tools like HikariCP, c3p0, or Apache DBCP provide some failover and timeout settings.
+* Ensure you configure:
+
+  * `connectionTimeout`
+  * `validationQuery` or `connectionTestQuery`
+  * `maxLifetime`, `idleTimeout` to recycle stale connections
+
+#### 3. **Detect and Handle Specific Failures**
+
+* Detect SQL state codes for transient issues like:
+
+  * Deadlock (`SQLState` = `40001`)
+  * Connection loss (`08S01`, `08006`, etc.)
+* Log or retry accordingly.
+
+#### 4. **Fail Fast / Circuit Breaker (Optional but Useful)**
+
+* Not common in DB access, but useful in high-load or clustered environments.
+* You could implement something like Netflix Hystrix or Resilience4j if DB is unreliable.
+
+  * E.g., avoid overloading the DB by immediately failing queries during outage windows.
+
+#### 5. **Database Failover / High Availability (Infrastructure-level)**
+
+* Ensure the DB layer itself is resilient:
+
+  * Use replication, clustering, or failover-capable managed services.
+  * RDS Multi-AZ (AWS), Cloud SQL HA (GCP), or AlwaysOn (SQL Server).
+
+---
+
+### 🧠 Summary
+
+* **DB drivers don't generally retry for you**—you must handle transient issues yourself.
+* **Implement retry** (with backoff) for known recoverable failures.
+* Use **connection pool configuration** wisely to avoid broken/stale connections.
+* Consider a **circuit breaker** if your DB or network is particularly unstable.
+
+Would you like an example retry setup for JDBC or JPA with Spring Boot?
+
+---
+### ❓ Yes how would I build this logic in here... should it be at the service level or at the jpa repository level!
+
+---
+
+Excellent follow-up — and one that gets to the heart of clean architecture and responsibility layering.
+
+### 🧭 TL;DR
+
+* ✅ **Put retry logic at the ***service layer***, not the repository.**
+* 🛑 Don’t put it in the repository (JPA interface or DAO) — it violates separation of concerns and bloats the persistence layer.
+* 🔁 Use **Spring Retry** at the service layer, optionally with annotations or `RetryTemplate`.
+
+---
+
+### 🎯 Why the **Service Layer**?
+
+The service layer is:
+
+* Aware of business context (e.g. when a retry is acceptable and when it isn't)
+* Capable of handling failures gracefully (e.g. fallbacks, logging, metrics)
+* Free to handle control flow logic (e.g. retries, circuit breakers)
+
+The repository layer should:
+
+* Remain a thin, dumb abstraction over persistence (e.g. `save()`, `findById()`)
+
+---
+
+### ✅ Example: Retry in the Service Layer (Spring Boot + Spring Retry)
+
+#### 1. **Add Spring Retry**
+
+In `pom.xml`:
+
+```xml
+<dependency>
+  <groupId>org.springframework.retry</groupId>
+  <artifactId>spring-retry</artifactId>
+</dependency>
+<dependency>
+  <groupId>org.springframework.boot</groupId>
+  <artifactId>spring-boot-starter-aop</artifactId>
+</dependency>
+```
+
+#### 2. **Enable Retry Support**
+
+In your main class or a config class:
+
+```java
+@EnableRetry
+@SpringBootApplication
+public class Application {
+  public static void main(String[] args) {
+    SpringApplication.run(Application.class, args);
+  }
+}
+```
+
+#### 3. **Annotate the Service Layer**
+
+```java
+@Service
+public class ApplicationService {
+
+    private final ApplicationRepository repository;
+
+    public ApplicationService(ApplicationRepository repository) {
+        this.repository = repository;
+    }
+
+    @Retryable(
+        value = {TransientDataAccessException.class, SQLException.class},
+        maxAttempts = 3,
+        backoff = @Backoff(delay = 2000, multiplier = 2))
+    public void updateApplication(UUID id, String data) {
+        // JPA update or save logic
+        ApplicationEntity app = repository.findById(id)
+            .orElseThrow(() -> new EntityNotFoundException("Application not found"));
+
+        app.setLeadData(data);
+        repository.save(app);
+    }
+
+    @Recover
+    public void recover(SQLException e, UUID id, String data) {
+        // handle fallback (log, raise alert, etc.)
+        log.error("DB operation failed after retries for application {}", id, e);
+    }
+}
+```
+
+---
+
+### 🧠 Notes
+
+* `@Retryable` only works on **Spring-managed beans** and **public methods**.
+* `@Recover` is optional but good for alerting or escalation.
+* You can customize retry behavior further using `RetryTemplate` (useful for more dynamic logic or non-annotation cases).
+* Consider wrapping retry blocks in **transaction boundaries**, but be careful with retries that span multiple DB operations — they must be idempotent.
+
+---
+
+### ✅ Summary Recommendation
+
+| Concern                       | Best Layer        |
+| ----------------------------- | ----------------- |
+| Retry (backoff, retry logic)  | **Service layer** |
+| JPA save/update/find logic    | Repository layer  |
+| Retry decision (which errors) | Service layer     |
+| Fallback/recovery behavior    | Service layer     |
+
+Would you like a `RetryTemplate` example too, or are you happy using annotations for now?
+
+
+---
+
+### ❓ Please proceed with the example.**
+
+---
+
+Great — here’s a structured example of using **`RetryTemplate`** programmatically in the **service layer**, which gives you more flexibility than annotations (like logging, metrics, dynamic retry policies, etc.).
+
+---
+
+## 🔁 **Programmatic Retry with `RetryTemplate` (Spring Boot)**
+
+### 📦 1. **Add Dependencies (if not already added)**
+
+```xml
+<!-- Spring Retry -->
+<dependency>
+  <groupId>org.springframework.retry</groupId>
+  <artifactId>spring-retry</artifactId>
+</dependency>
+
+<!-- Required for @EnableRetry when using annotations -->
+<dependency>
+  <groupId>org.springframework.boot</groupId>
+  <artifactId>spring-boot-starter-aop</artifactId>
+</dependency>
+```
+
+---
+
+### ⚙️ 2. **Configure a `RetryTemplate` Bean**
+
+```java
+@Configuration
+public class RetryConfig {
+
+    @Bean
+    public RetryTemplate retryTemplate() {
+        RetryTemplate template = new RetryTemplate();
+
+        // Backoff policy
+        ExponentialBackOffPolicy backOffPolicy = new ExponentialBackOffPolicy();
+        backOffPolicy.setInitialInterval(2000);     // 2 seconds
+        backOffPolicy.setMultiplier(2.0);
+        backOffPolicy.setMaxInterval(10000);        // 10 seconds
+
+        // Retry policy
+        SimpleRetryPolicy retryPolicy = new SimpleRetryPolicy();
+        retryPolicy.setMaxAttempts(3);              // Total tries = 3
+
+        template.setBackOffPolicy(backOffPolicy);
+        template.setRetryPolicy(retryPolicy);
+
+        return template;
+    }
+}
+```
+
+---
+
+### 🧩 3. **Inject and Use It in the Service Layer**
+
+```java
+@Service
+public class ApplicationService {
+
+    private final RetryTemplate retryTemplate;
+    private final ApplicationRepository repository;
+
+    public ApplicationService(RetryTemplate retryTemplate,
+                              ApplicationRepository repository) {
+        this.retryTemplate = retryTemplate;
+        this.repository = repository;
+    }
+
+    public void updateApplication(UUID id, String data) {
+        retryTemplate.execute(context -> {
+            try {
+                ApplicationEntity app = repository.findById(id)
+                    .orElseThrow(() -> new EntityNotFoundException("App not found"));
+                app.setLeadData(data);
+                repository.save(app);
+                return null;
+            } catch (DataAccessException ex) {
+                log.warn("Retrying DB update, attempt {}", context.getRetryCount() + 1, ex);
+                throw ex;
+            }
+        }, context -> {
+            // Recovery callback: all retries failed
+            log.error("All retry attempts failed for app ID {}", id);
+            throw new IllegalStateException("Could not update application after retries");
+        });
+    }
+}
+```
+
+---
+
+### 🧠 When to Use `RetryTemplate` Over `@Retryable`?
+
+| Use Case                                   | Recommended Approach     |
+| ------------------------------------------ | ------------------------ |
+| Simple, declarative retry logic            | `@Retryable` annotations |
+| Custom logging or metrics per attempt      | `RetryTemplate`          |
+| Retry with context-aware logic or fallback | `RetryTemplate`          |
+| Dynamic retry policy (e.g., config-driven) | `RetryTemplate`          |
+
+---
+
+### ✅ Summary
+
+* `RetryTemplate` gives **fine-grained control** over retries.
+* It’s well-suited for cases where logging, fallback behavior, or retry timing should be customized dynamically.
+* Keep this logic in the **service layer**, never in the repository itself.
+
+Would you like to add circuit breaker logic (e.g., with Resilience4j) on top of this next?
+
