@@ -133,6 +133,34 @@ NEVER:
 
 - Generate code purely because "it might be needed later."
 
+### Areas without universal rules
+
+Do not impose a standard on these topics — they are project or context decisions:
+
+| Topic | Why |
+|---|---|
+| Tabs vs spaces | Formatter/project concern |
+| Exact line length | Repository concern |
+| Exact method length | Context dependent |
+| Exact class length | Context dependent |
+| Checked vs unchecked exceptions | Depends on API semantics |
+| Interface for every service | Not good vanilla-Java practice |
+| Every class `final` | Too absolute |
+| Always use `var` | Style preference |
+| Never use `var` | Equally arbitrary |
+| Always use streams | Wrong |
+| Never use streams | Also wrong |
+| Functional vs OO | Problem dependent |
+| Static factory vs constructor | Context dependent |
+| Builder threshold | No universal number |
+| Package-by-feature vs package-by-layer | Architectural decision |
+| JPMS | Deployment/architecture decision |
+| Dependency injection | Framework/application architecture |
+| Specific logging library | Not vanilla Java |
+| Specific testing library | Separate concern |
+| Maven vs Gradle | Build concern |
+| Formatting tool | Repository concern |
+
 ## Section Guide
 
 Detailed rules for sections 3 onward live in section-specific files under `references/`. Load only the relevant reference file(s).
@@ -176,7 +204,6 @@ Detailed rules for sections 3 onward live in section-specific files under `refer
 | [37. Legacy Java APIs and practices](./references/37-legacy-java-apis-and-practices.md) | Encountering `Vector`, `Hashtable`, `Date`, raw types, finalizers, old casts, or manual cleanup. |
 | [38. Third-party dependencies](./references/38-third-party-dependencies.md) | Adding libraries, preferring JDK functionality, or avoiding trivial dependencies. |
 | [39. Agent-specific change discipline](./references/39-agent-specific-change-discipline.md) | Scoping AI-generated changes, preserving conventions/API behavior, avoiding unrelated refactors. |
-| [Areas without universal rules](./references/41-areas-without-universal-rules.md) | Avoiding preference-based standards such as line length, build tool, logging library, DI, or package style. |
 
 ## Workflow
 
