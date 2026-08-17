@@ -1,6 +1,6 @@
 ---
 name: java-21-standards
-description: Use when writing, reviewing, refactoring, or modernizing vanilla Java 21 code. Applies Java 21 language, design, immutability, collections, null handling, exceptions, resources, concurrency, virtual threads, I/O, security, performance, and AI-agent change-discipline standards while avoiding speculative abstractions and unrelated modernization.
+description: Use when writing, reviewing, refactoring, or modernizing vanilla Java 21 code. Applies Java 21 language, design, immutability, collections, null handling, exceptions, resources, concurrency, virtual threads, I/O, security, performance, and AI-agent change-discipline standards while avoiding speculative abstractions and unrelated modernization. Covers vanilla Java only — for Spring Boot-specific standards use java-21-springboot-standards.
 ---
 
 # Java 21 Standards
