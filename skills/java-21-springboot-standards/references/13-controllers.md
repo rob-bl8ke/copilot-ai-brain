@@ -7,6 +7,7 @@ Assuming Spring MVC/web is present:
 * Treat request input as untrusted.
 * Validate external input.
 * Return appropriate HTTP semantics.
+* For authentication, authorisation, CORS, and CSRF, defer to `java-spring-security-standards` when present.
 
 ### SHOULD
 
