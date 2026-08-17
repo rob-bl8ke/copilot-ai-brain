@@ -28,3 +28,34 @@
 
 * Treat "stream" as automatically superior to a loop.
 
+### Examples
+
+**A loop is clearer when iteration is index-dependent**
+
+```java
+// HARDER TO READ — stream requires IntStream gymnastics for the index
+var result = IntStream.range(0, items.size())
+    .filter(i -> items.get(i).isValid())
+    .mapToObj(i -> i + ": " + items.get(i).name())
+    .toList();
+
+// CLEARER — plain loop
+var result = new ArrayList<String>();
+for (int i = 0; i < items.size(); i++)
+    if (items.get(i).isValid()) result.add(i + ": " + items.get(i).name());
+```
+
+**Side effects inside `map` break with parallel streams**
+
+```java
+// WRONG — mutation inside map; order undefined, broken when parallel
+List<String> recorded = new ArrayList<>();
+list.stream()
+    .map(item -> { recorded.add(item.id()); return item.process(); })
+    .toList();
+
+// CORRECT — separate transformation from side effect
+var results = list.stream().map(Item::process).toList();
+list.forEach(item -> recorded.add(item.id()));
+```
+
