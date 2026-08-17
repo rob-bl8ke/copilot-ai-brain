@@ -20,4 +20,25 @@
 
 * Create a fixed-size pool of virtual threads simply because platform threads were traditionally pooled.
 
+### Examples
+
+**Bound the scarce resource, not the threads**
+
+```java
+// WRONG — fixed virtual-thread pool defeats the purpose
+ExecutorService exec = Executors.newFixedThreadPool(100,
+    Thread.ofVirtual().factory());
+
+// CORRECT — one virtual thread per task; semaphore caps the real constraint
+Semaphore dbSlots = new Semaphore(20); // e.g. DB connection pool size
+try (var exec = Executors.newVirtualThreadPerTaskExecutor()) {
+    for (var request : requests) {
+        exec.submit(() -> {
+            dbSlots.acquireUninterruptibly();
+            try { handle(request); }
+            finally { dbSlots.release(); }
+        });
+    }
+} // close() waits for all tasks to finish
+```
 
