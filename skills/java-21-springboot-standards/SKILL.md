@@ -42,6 +42,58 @@ Keep these rules active before writing code:
 16. Do not refactor unrelated Java into Spring-style code.
 17. Make the smallest coherent framework-aware change.
 
+## Agent Guardrails
+
+These rules apply specifically to AI-agent-generated code and distil the most common Spring failure modes. Full detail in [section 39](./references/39-spring-specific-ai-anti-patterns.md), [40](./references/40-agent-change-discipline.md), and [41](./references/41-skill-boundaries.md).
+
+### Never generate layer explosions
+
+Automatically creating a full stack of:
+
+```text
+FooController
+FooService
+FooServiceImpl
+FooRepository
+FooRepositoryImpl
+FooMapper
+FooDto
+FooEntity
+FooConfiguration
+FooException
+FooExceptionHandler
+```
+
+for every feature is the most common AI anti-pattern with Spring. Create only what the requirement justifies.
+
+### Never sprinkle annotations without purpose
+
+Each of the following must solve an actual stated problem before being introduced:
+
+* `@Transactional`
+* `@Async`
+* `@Cacheable`
+* `@Retryable`
+* interfaces
+* DTOs
+* mappers
+* configuration classes
+* Spring profiles
+* event publishers
+
+### Never touch versions or existing architecture silently
+
+MUST NOT:
+* Upgrade Spring Boot or managed dependency versions.
+* Introduce a Spring abstraction merely because it exists.
+* Invent a new architectural layer when one already exists.
+* Override existing conventions with a different style.
+
+MUST:
+* Make the smallest Spring-aware change.
+* Preserve existing bean wiring, configuration, and tests.
+* Reuse existing application architecture.
+
 ## Classification Meanings
 
 | Level | Meaning |
@@ -117,9 +169,9 @@ Detailed Spring Boot rules live in section-specific files under `references/`. L
 | [29. Health indicators](./references/29-health-indicators.md) | Designing liveness/readiness checks and cheap health indicators. |
 | [30. Dependency management](./references/30-dependency-management.md) | Editing Maven dependencies, starters, managed versions, or overrides. |
 | [31. Starter selection](./references/31-starter-selection.md) | Choosing Spring Boot starters without adding broad dependencies just in case. |
-| [32. Testing strategy](./references/32-testing-strategy.md) | Selecting plain unit tests, focused Spring tests, integration tests, or `@SpringBootTest`. |
-| [33. Testcontainers](./references/33-testcontainers.md) | Using real external systems in integration tests where correctness depends on them. |
-| [34. Mocking Spring](./references/34-mocking-spring.md) | Choosing what to mock and avoiding tests coupled to Spring internals. |
+| [32. Testing strategy](./references/32-testing-strategy.md) | Selecting plain unit tests, focused Spring tests, integration tests, or `@SpringBootTest`. Defers to `java-21-springboot-unit-testing`, `java-21-springboot-integration-tests`, and `java-21-springboot-e2e-tests` skills when present. |
+| [33. Testcontainers](./references/33-testcontainers.md) | Using real external systems in integration tests where correctness depends on them. Defers to `java-21-springboot-integration-tests` and `java-21-springboot-e2e-tests` skills when present. |
+| [34. Mocking Spring](./references/34-mocking-spring.md) | Choosing what to mock and avoiding tests coupled to Spring internals. Defers to `unit-testing` skill when present. |
 | [35. Package organization](./references/35-package-organization.md) | Placing application classes and avoiding universal package architecture mandates. |
 | [36. Annotation restraint](./references/36-annotation-restraint.md) | Adding annotations or reviewing annotation-heavy code. |
 | [37. Framework magic versus explicit Java](./references/37-framework-magic-versus-explicit-java.md) | Deciding between Spring idioms and ordinary Java idioms. |
