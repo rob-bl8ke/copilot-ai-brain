@@ -32,3 +32,35 @@
 * Catch `Throwable` in ordinary application logic.
 * Use an empty `catch` block.
 
+### Examples
+
+**Preserve the cause when translating an exception**
+
+```java
+// WRONG — original cause discarded; root problem invisible in logs
+try { repository.save(entity); }
+catch (SQLException e) {
+    throw new DataAccessException("Save failed"); // cause lost
+}
+
+// CORRECT — cause chain preserved
+catch (SQLException e) {
+    throw new DataAccessException("Save failed for id=" + entity.getId(), e);
+}
+```
+
+**Log-and-rethrow at every layer produces duplicate log entries**
+
+```java
+// WRONG — same exception logged at service, facade, and controller layers
+} catch (OrderException e) {
+    log.error("Order processing failed", e);
+    throw e; // logged again upstream
+}
+
+// CORRECT — log once at the boundary that handles it, or just rethrow
+} catch (OrderException e) {
+    throw e;
+}
+```
+
