@@ -41,7 +41,7 @@ Keep these rules active before writing code:
 
 ## Always-Loaded Standards
 
-### 1. General Design
+### General Design
 
 Use when making any Java change.
 
@@ -77,7 +77,7 @@ AVOID:
 - Pattern-heavy implementations for simple problems.
 - Creating additional layers simply because an architectural pattern permits them.
 
-### 2. Java 21 Language Features
+### Java 21 Language Features
 
 Use when choosing syntax or deciding whether to modernize code.
 
@@ -107,7 +107,38 @@ NEVER:
 
 - Use preview language features in production code unless the project explicitly opts into them.
 
-### 40. AI-specific overengineering guardrails
+### 39. Agent-specific change discipline
+
+MUST:
+
+- Respect existing repository conventions unless explicitly instructed otherwise.
+- Limit changes to the requested scope.
+- Preserve API compatibility unless the requirement explicitly changes it.
+- Keep builds/tests compilable after the change where reasonably possible.
+
+SHOULD:
+
+- Produce the smallest coherent implementation.
+- Reuse existing abstractions where they fit.
+- Follow existing naming/package structure.
+- Identify contradictions between the requested implementation and existing code instead of silently inventing a new convention.
+
+AVOID:
+
+- Opportunistic refactoring unrelated to the task.
+- Reformatting unrelated files.
+- Adding dependencies unnecessarily.
+- Creating unused extension points.
+- Generating placeholder abstractions for hypothetical future requirements.
+- Modernizing unrelated code merely because a newer Java feature exists.
+
+NEVER:
+
+- Invent architectural requirements not present in the task/repository.
+- Change public behavior silently.
+- Suppress compiler warnings simply to produce a clean build.
+
+### AI-specific overengineering guardrails
 
 SHOULD:
 
@@ -203,7 +234,6 @@ Detailed rules for sections 3 onward live in section-specific files under `refer
 | [36. Testability](./references/36-testability.md) | Designing deterministic behavior, dependency boundaries, clocks, randomness, or external effects. |
 | [37. Legacy Java APIs and practices](./references/37-legacy-java-apis-and-practices.md) | Encountering `Vector`, `Hashtable`, `Date`, raw types, finalizers, old casts, or manual cleanup. |
 | [38. Third-party dependencies](./references/38-third-party-dependencies.md) | Adding libraries, preferring JDK functionality, or avoiding trivial dependencies. |
-| [39. Agent-specific change discipline](./references/39-agent-specific-change-discipline.md) | Scoping AI-generated changes, preserving conventions/API behavior, avoiding unrelated refactors. |
 
 ## Workflow
 
