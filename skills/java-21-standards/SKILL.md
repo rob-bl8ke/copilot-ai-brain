@@ -107,6 +107,32 @@ NEVER:
 
 - Use preview language features in production code unless the project explicitly opts into them.
 
+### 40. AI-specific overengineering guardrails
+
+SHOULD:
+
+- Prefer existing code patterns over introducing new patterns.
+- Use the simplest construct that expresses the requirement.
+- Delete obsolete code when the requested change genuinely replaces it.
+
+AVOID:
+
+- Interface + abstract base + concrete implementation when one class suffices.
+- Builders for tiny records/classes.
+- Factories that merely call constructors.
+- Wrapper classes with no domain semantics.
+- Utility classes containing one trivial method.
+- Excessive comments.
+- Excessive validation deep inside trusted code.
+- Premature caching.
+- Premature concurrency.
+- Premature asynchronous APIs.
+- Design patterns added merely for architectural appearance.
+
+NEVER:
+
+- Generate code purely because "it might be needed later."
+
 ## Section Guide
 
 Detailed rules for sections 3 onward live in section-specific files under `references/`. Load only the relevant reference file(s).
@@ -150,7 +176,6 @@ Detailed rules for sections 3 onward live in section-specific files under `refer
 | [37. Legacy Java APIs and practices](./references/37-legacy-java-apis-and-practices.md) | Encountering `Vector`, `Hashtable`, `Date`, raw types, finalizers, old casts, or manual cleanup. |
 | [38. Third-party dependencies](./references/38-third-party-dependencies.md) | Adding libraries, preferring JDK functionality, or avoiding trivial dependencies. |
 | [39. Agent-specific change discipline](./references/39-agent-specific-change-discipline.md) | Scoping AI-generated changes, preserving conventions/API behavior, avoiding unrelated refactors. |
-| [40. AI-specific overengineering guardrails](./references/40-ai-specific-overengineering-guardrails.md) | Preventing speculative interfaces, builders, factories, wrappers, utilities, caching, concurrency, or patterns. |
 | [Areas without universal rules](./references/41-areas-without-universal-rules.md) | Avoiding preference-based standards such as line length, build tool, logging library, DI, or package style. |
 
 ## Workflow
