@@ -20,5 +20,4 @@
 
 * Create a fixed-size pool of virtual threads simply because platform threads were traditionally pooled.
 
-This last rule may need nuance in the final skill: sometimes concurrency itself needs bounding, but the thing being bounded should ordinarily be the constrained resource/workload rather than virtual-thread reuse.
 
