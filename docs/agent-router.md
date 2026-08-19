@@ -1,708 +1,572 @@
-# Agent Integration Guide
+# Intelligent Agent Router
 
-How the 13 specialized agents integrate with team hooks, skills, and workflows.
+**Hook:** `hooks/pre-user-prompt/agent-router.sh`
 
-## Integration Overview
+Analyzes user requests and automatically recommends which specialized agents to invoke.
 
+---
+
+## How It Works
+
+### 1. User Submits Task
 ```
-Team Hooks → Detect Patterns → Trigger Agents → Enforce Standards
-     ↓
-Team Skills → Wrap Agents → Simplify Usage → Team Workflows
-     ↓
-Agent Output → Feed Back → Iterate → Quality Gates
+User: "Implement OAuth2 authentication with PostgreSQL"
+```
+
+### 2. Hook Analyzes Keywords
+```bash
+🤖 Analyzing task for agent routing...
+
+Detected patterns:
+  • "authentication" → security-reviewer
+  • "OAuth2" → security-reviewer
+  • "PostgreSQL" → database-reviewer
+```
+
+### 3. Recommends Agents
+```
+📋 Recommended Agents:
+
+  🗄️  database-reviewer
+      → Query optimization, schema design, PostgreSQL
+      → Use: Task(subagent_type="everything-claude-code:database-reviewer", ...)
+
+  🔒 security-reviewer
+      → OWASP Top 10, vulnerabilities, secrets detection
+      → Use: Task(subagent_type="everything-claude-code:security-reviewer", ...)
+
+💡 Tip: Claude should proactively invoke these agents
+```
+
+### 4. Claude Auto-Invokes (Proactive)
+```
+Claude sees recommendations → Spawns agents automatically
 ```
 
 ---
 
-## Hook → Agent Mappings
+## Routing Rules
 
-### Pre-Commit Hooks
+### Architecture & Planning
 
-**1. security-check.sh** → `security-reviewer` agent
+| Keywords | Agent | Reason |
+|----------|-------|--------|
+| design, architect, plan | `architect` | System design needed |
+| complex, multi-step, distributed | `planner` | Implementation planning |
+| refactor, restructure, redesign | `architect` | Architectural changes |
 
-```bash
-# Trigger Conditions:
-- API endpoint changes (@RestController, @PostMapping, etc.)
-- Security annotations (@PreAuthorize, @Secured, etc.)
-- Database queries (createQuery, JdbcTemplate, etc.)
-- External API calls (RestTemplate, WebClient, etc.)
-
-# What Happens:
-hooks/pre-commit/security-check.sh
-→ Detects security-sensitive changes
-→ Triggers: Task(subagent_type="everything-claude-code:security-reviewer")
-→ Agent scans for OWASP Top 10, secrets, injection vulnerabilities
-→ Returns: CRITICAL/HIGH/MEDIUM findings
-→ Blocks commit if CRITICAL issues found
+**Example:**
 ```
-
-**Example Flow:**
-```
-Developer: git commit -m "Add payment endpoint"
-     ↓
-Hook: Detects @PostMapping in diff
-     ↓
-Agent: security-reviewer runs
-     ↓
-Finding: SQL injection risk detected
-     ↓
-Result: Commit blocked, fix required
+"Design a scalable microservices architecture"
+→ architect, planner
 ```
 
 ---
 
-**2. test-coverage.sh** → `tdd-guide` agent (if coverage < 80%)
+### Security-Sensitive
 
-```bash
-# Trigger Conditions:
-- Java files changed (.java)
-- Test coverage < 80%
+| Keywords | Agent | Reason |
+|----------|-------|--------|
+| auth, authentication, login | `security-reviewer` | Authentication logic |
+| password, token, jwt, oauth | `security-reviewer` | Credentials handling |
+| payment, credit card, sensitive | `security-reviewer` | Sensitive data |
+| encrypt, decrypt, api key, secret | `security-reviewer` | Cryptography |
 
-# What Happens:
-hooks/pre-commit/test-coverage.sh
-→ Runs JaCoCo coverage check
-→ If < 80%, suggests: Task(subagent_type="everything-claude-code:tdd-guide")
-→ Agent generates missing tests
-→ Returns: Test templates
-→ Re-run coverage check
+**Example:**
+```
+"Implement payment processing endpoint"
+→ security-reviewer
 ```
 
 ---
 
-**3. schema-validation.sh** → `database-reviewer` agent (optional)
+### Database Operations
 
-```bash
-# Trigger Conditions:
-- Schema file changes (.avsc, .proto)
-- Migration files (flyway, liquibase)
+| Keywords | Agent | Reason |
+|----------|-------|--------|
+| database, sql, query | `database-reviewer` | Query optimization |
+| migration, schema, index | `database-reviewer` | Schema design |
+| postgres, supabase | `database-reviewer` | PostgreSQL-specific |
 
-# What Happens:
-hooks/pre-commit/schema-validation.sh
-→ Validates schema syntax
-→ Optionally triggers: Task(subagent_type="everything-claude-code:database-reviewer")
-→ Agent checks schema design, indexes, constraints
-→ Returns: Optimization recommendations
+**Example:**
+```
+"Create customer table with indexes"
+→ database-reviewer
 ```
 
 ---
 
-### Pre-Task Hooks
+### Language-Specific
 
-**4. complexity-assessment.sh** → `auto-review-loop` skill → `code-reviewer` agent
+| Keywords | Agent | Reason |
+|----------|-------|--------|
+| go, golang, goroutine, channel | `go-reviewer` | Go code review |
+| python, django, flask, pytest | `python-reviewer` | Python code review |
 
-```bash
-# Trigger Conditions:
-- Complexity score ≥ 5
-
-# What Happens:
-hooks/pre-task/complexity-assessment.sh
-→ Calculates complexity score
-→ If ≥ 5, triggers: /auto-review-loop
-→ Skill spawns: Task(subagent_type="everything-claude-code:code-reviewer")
-→ Agent reviews code quality, security, maintainability
-→ Iterates until LGTM
-→ Runs tests
-→ Reports results
+**Example:**
 ```
-
-**Complexity Triggers:**
-```
-Score 7: Multiple files (5+) + New API endpoint + Security code
-     ↓
-auto-review-loop triggered
-     ↓
-Iteration 1: code-reviewer finds issues
-     ↓
-Fix issues
-     ↓
-Iteration 2: code-reviewer LGTM
-     ↓
-Run tests → Pass → Success
+"Optimize Go concurrent worker pool"
+→ go-reviewer, go-build-resolver (if errors)
 ```
 
 ---
 
-### Post-Code Hooks
+### Testing
 
-**5. domain-review.sh** → `architect` agent (optional)
+| Keywords | Agent | Reason |
+|----------|-------|--------|
+| test, tdd, unit test, coverage | `tdd-guide` | Test-first development |
+| e2e, end-to-end, browser test | `e2e-runner` | Browser automation |
 
-```bash
-# Trigger Conditions:
-- Domain model changes (aggregate, entity, value object)
-- Bounded context violations
-
-# What Happens:
-hooks/post-code/domain-review.sh
-→ Detects DDD pattern changes
-→ Optionally triggers: Task(subagent_type="everything-claude-code:architect")
-→ Agent reviews architecture, DDD boundaries
-→ Returns: Architecture feedback
+**Example:**
+```
+"Write tests for checkout flow"
+→ tdd-guide, e2e-runner
 ```
 
 ---
 
-## Skill → Agent Mappings
+### Code Quality
 
-### auto-review-loop
+| Keywords | Agent | Reason |
+|----------|-------|--------|
+| refactor, clean up, dead code | `refactor-cleaner` | Code cleanup |
+| document, readme, codemap | `doc-updater` | Documentation |
 
-**Primary Agent:** `code-reviewer`
-
-**Optional Agents (triggered by detected patterns):**
-- `security-reviewer` - If API/auth code detected
-- `go-reviewer` - If Go files detected
-- `python-reviewer` - If Python files detected
-- `database-reviewer` - If SQL/schema changes detected
-
-**Workflow:**
+**Example:**
 ```
-/auto-review-loop implement feature
-     ↓
-1. General-purpose agent implements
-     ↓
-2. code-reviewer agent reviews
-     ↓
-3. security-reviewer agent (if API changes)
-     ↓
-4. go-reviewer agent (if Go files)
-     ↓
-5. Iterate until all agents LGTM
-     ↓
-6. Run tests
-     ↓
-7. Report results
+"Clean up unused imports and dead code"
+→ refactor-cleaner
 ```
 
 ---
 
-### go-review (Custom Skill)
+### Build & Errors
 
-**Primary Agent:** `go-reviewer`
+| Keywords | Agent | Reason |
+|----------|-------|--------|
+| build error, type error | `build-error-resolver` | TypeScript/build fixes |
+| go vet, go build, golangci-lint | `go-build-resolver` | Go build fixes |
 
-**Secondary Agent:** `go-build-resolver` (if build issues)
-
-**Usage:**
-```bash
-/go-review
+**Example:**
 ```
-
-**What Happens:**
-```
-1. Run git diff to see Go changes
-2. Trigger: Task(subagent_type="everything-claude-code:go-reviewer")
-3. Agent checks:
-   - Idiomatic Go patterns
-   - Concurrency safety
-   - Error handling
-   - Performance
-4. If build issues: Task(subagent_type="everything-claude-code:go-build-resolver")
-5. Report findings
-```
-
-**Create this skill:**
-```markdown
-# go-review
-
-Comprehensive Go code review using go-reviewer agent
-
-## Trigger
-- User says "review go code"
-- User invokes `/go-review`
-- User says "go code review"
-
-## Workflow
-1. Run git diff to identify Go file changes
-2. Spawn Task(subagent_type="everything-claude-code:go-reviewer")
-3. If build issues detected, spawn Task(subagent_type="everything-claude-code:go-build-resolver")
-4. Report findings in priority order (Critical → Warnings → Suggestions)
+"Fix TypeScript compilation errors"
+→ build-error-resolver
 ```
 
 ---
 
-### python-review (Custom Skill)
+## Orchestration Strategies
 
-**Primary Agent:** `python-reviewer`
+### Sequential (Planning First)
 
-**Usage:**
-```bash
-/python-review
+When `architect` or `planner` detected:
+
 ```
-
-**What Happens:**
-```
-1. Run git diff to see Python changes
-2. Trigger: Task(subagent_type="everything-claude-code:python-reviewer")
-3. Agent checks:
-   - PEP 8 compliance
-   - Pythonic idioms
-   - Type hints
-   - Security vulnerabilities
-4. Report findings
-```
-
-**Create this skill:**
-```markdown
-# python-review
-
-Comprehensive Python code review using python-reviewer agent
-
-## Trigger
-- User says "review python code"
-- User invokes `/python-review`
-- User says "python code review"
-
-## Workflow
-1. Run git diff to identify Python file changes
-2. Spawn Task(subagent_type="everything-claude-code:python-reviewer")
-3. Report findings in priority order (Critical → Warnings → Suggestions)
-```
-
----
-
-### security-review (Custom Skill)
-
-**Primary Agent:** `security-reviewer`
-
-**Usage:**
-```bash
-/security-review
-```
-
-**What Happens:**
-```
-1. Run git diff to see API/auth changes
-2. Trigger: Task(subagent_type="everything-claude-code:security-reviewer")
-3. Agent checks:
-   - OWASP Top 10
-   - Hardcoded secrets
-   - Input validation
-   - SQL injection
-   - XSS, CSRF, SSRF
-4. Run security tools (npm audit, trufflehog)
-5. Report vulnerabilities by severity
-```
-
-**Create this skill:**
-```markdown
-# security-review
-
-Security vulnerability detection using security-reviewer agent
-
-## Trigger
-- User says "security review"
-- User invokes `/security-review`
-- User says "check for vulnerabilities"
-- Pre-commit hook detects security-sensitive changes
-
-## Workflow
-1. Run git diff to identify security-sensitive changes
-2. Spawn Task(subagent_type="everything-claude-code:security-reviewer")
-3. Agent runs security scans:
-   - npm audit (dependencies)
-   - trufflehog (secrets)
-   - Pattern matching (injection, XSS, etc.)
-4. Report findings by severity (CRITICAL → HIGH → MEDIUM → LOW)
-5. Provide fix recommendations
-```
-
----
-
-## Agent Orchestration Patterns
-
-### Pattern 1: Sequential Review Chain
-
-Use when order matters (fix build before reviewing code):
-
-```bash
-1. go-build-resolver → Fix build
+1. architect/planner → Design system
      ↓
-2. go-reviewer → Review code quality
+2. security-reviewer → Review security (if needed)
      ↓
-3. security-reviewer → Check vulnerabilities
+3. Implement code
      ↓
-4. database-reviewer → Optimize queries
+4. go-reviewer/python-reviewer → Language review
+     ↓
+5. tdd-guide → Ensure tests
 ```
 
-**Implementation:**
-```bash
-# In skill or hook:
-Task(subagent_type="everything-claude-code:go-build-resolver", ...)
-# Wait for completion
-Task(subagent_type="everything-claude-code:go-reviewer", ...)
-# Wait for completion
-Task(subagent_type="everything-claude-code:security-reviewer", ...)
+**Example:**
+```
+"Design and implement payment saga"
+
+Orchestration:
+  1. architect → Design saga pattern
+  2. security-reviewer → Review payment security
+  3. Implement saga
+  4. go-reviewer → Review Go implementation
+  5. tdd-guide → Add integration tests
 ```
 
 ---
 
-### Pattern 2: Parallel Review Execution
+### Parallel (Fast Feedback)
 
-Use when reviews are independent (faster feedback):
+When no planning agents:
 
-```bash
-       ┌─ code-reviewer
+```
+       ┌─ security-reviewer
        │
-Start ─┼─ security-reviewer  → Aggregate Results
+Start ─┼─ database-reviewer  → Aggregate Results
        │
        └─ go-reviewer
 ```
 
-**Implementation:**
-```bash
-# Single message with multiple Task calls:
-Task(subagent_type="everything-claude-code:code-reviewer", ...)
-Task(subagent_type="everything-claude-code:security-reviewer", ...)
-Task(subagent_type="everything-claude-code:go-reviewer", ...)
+**Example:**
+```
+"Fix authentication bug"
+
+Orchestration:
+  Parallel:
+    - security-reviewer (auth logic)
+    - go-reviewer (code quality)
+  → Combine feedback → Fix
 ```
 
 ---
 
-### Pattern 3: Conditional Agent Triggering
+## Real-World Examples
 
-Use when agent depends on detected patterns:
+### Example 1: OAuth Implementation
 
-```bash
-Detect Changes
-     ↓
-API changes? → YES → security-reviewer
-     ↓
-SQL changes? → YES → database-reviewer
-     ↓
-Go files? → YES → go-reviewer
-     ↓
-Python files? → YES → python-reviewer
+**Input:**
+```
+"Implement OAuth2 authentication with role-based access control"
 ```
 
-**Implementation:**
-```bash
-# In hook or skill:
-if git diff --cached --name-only | grep -E "\.go$"; then
-    Task(subagent_type="everything-claude-code:go-reviewer", ...)
-fi
-
-if git diff --cached | grep -E "@PostMapping|@GetMapping"; then
-    Task(subagent_type="everything-claude-code:security-reviewer", ...)
-fi
+**Router Output:**
 ```
+🤖 Analyzing task for agent routing...
 
----
+📋 Recommended Agents:
 
-## Agent + Hook Examples
+  🏗️  architect
+      → System design, scalability, architectural decisions
 
-### Example 1: New API Endpoint
+  🔒 security-reviewer
+      → OWASP Top 10, vulnerabilities, secrets detection
 
-**Code:**
-```java
-@RestController
-public class PaymentController {
-    @PostMapping("/api/payments")
-    public Response createPayment(@RequestBody PaymentRequest req) {
-        String sql = "INSERT INTO payments VALUES ('" + req.getAmount() + "')";
-        jdbcTemplate.execute(sql);
-        return Response.ok();
-    }
-}
-```
+  ✅ tdd-guide
+      → Test-Driven Development, write tests first
 
-**Hook Flow:**
-```bash
-git commit -m "Add payment endpoint"
-     ↓
-hooks/pre-commit/security-check.sh
-     ↓
-Detects: @PostMapping, @RequestBody, JdbcTemplate
-     ↓
-Triggers: security-reviewer agent
-     ↓
-Agent Findings:
-  🚨 CRITICAL: SQL injection via string concatenation
-  🚨 CRITICAL: No input validation on PaymentRequest
-  ⚠️  HIGH: Missing @PreAuthorize annotation
-  ⚠️  HIGH: No rate limiting
-     ↓
-Commit BLOCKED → Fix required
+🔀 Orchestration Suggestion:
+
+  Sequential (Planning First):
+    1. architect → Design system
+    2. security-reviewer → Review security
+    3. Implement code
+    4. tdd-guide → Ensure test coverage
 ```
 
 ---
 
-### Example 2: Complex Saga Implementation
+### Example 2: Database Optimization
 
-**Task:**
+**Input:**
 ```
-Implement payment processing saga with event sourcing
+"Optimize slow customer query and add indexes"
 ```
 
-**Hook Flow:**
-```bash
-hooks/pre-task/complexity-assessment.sh
-     ↓
-Signals Detected:
-  • 8 files changed (+2)
-  • Saga pattern (+3)
-  • Event sourcing (+3)
-  • Kafka integration (+2)
-  • Security-related (+3)
-     ↓
-Complexity Score: 13 (threshold: 5)
-     ↓
-Triggers: /auto-review-loop
-     ↓
-Iteration 1:
-  - Implement saga logic
-  - architect agent reviews architecture
-  - code-reviewer finds missing idempotency
-     ↓
-Iteration 2:
-  - Add idempotency keys
-  - security-reviewer finds missing encryption
-     ↓
-Iteration 3:
-  - Add encryption
-  - database-reviewer suggests indexes
-     ↓
-Iteration 4:
-  - Add indexes
-  - All agents LGTM
-     ↓
-Run tests → 85% coverage → Pass
-     ↓
-Success after 4 iterations
+**Router Output:**
+```
+📋 Recommended Agents:
+
+  🗄️  database-reviewer
+      → Query optimization, schema design, PostgreSQL
+
+💡 Tip: Claude should proactively invoke these agents
 ```
 
 ---
 
 ### Example 3: Go Concurrency Bug
 
-**Code:**
-```go
-func processOrders(orders []Order) {
-    var wg sync.WaitGroup
-    results := make(map[string]Result)
-
-    for _, order := range orders {
-        wg.Add(1)
-        go func(o Order) {
-            defer wg.Done()
-            results[o.ID] = process(o)  // Race condition!
-        }(order)
-    }
-    wg.Wait()
-}
+**Input:**
+```
+"Fix race condition in Go worker pool and ensure proper goroutine cleanup"
 ```
 
-**Hook Flow:**
-```bash
-git commit -m "Add concurrent order processing"
-     ↓
-hooks/pre-commit/test-coverage.sh
-     ↓
-Detects: Go files changed
-     ↓
-Triggers: go-reviewer agent
-     ↓
-Agent Findings:
-  🚨 CRITICAL: Data race - concurrent map writes without mutex
-  ⚠️  HIGH: No error handling in goroutines
-  ℹ️  SUGGESTION: Consider using sync.Map or channels
-     ↓
-Fix Recommendation:
-  ```go
-  results := sync.Map{}
-  // or
-  mu := sync.Mutex{}
-  ```
-     ↓
-Commit BLOCKED → Fix required
+**Router Output:**
+```
+📋 Recommended Agents:
+
+  🐹 go-reviewer
+      → Idiomatic Go, concurrency, error handling
+
+  🧹 refactor-cleaner
+      → Dead code cleanup, duplicate removal
+
+🔀 Orchestration Suggestion:
+
+  Parallel (Fast Feedback):
+    Run all agents simultaneously after implementation
 ```
 
 ---
 
-## Agent Performance Optimization
+### Example 4: Complex Saga
 
-### 1. Scope Reduction
+**Input:**
+```
+"Design distributed payment processing saga with event sourcing and Kafka"
+```
 
-Instead of reviewing entire repo:
+**Router Output:**
+```
+📋 Recommended Agents:
 
-```bash
-# Bad (slow)
-Task(
-  subagent_type="everything-claude-code:code-reviewer",
-  prompt="Review the codebase"
-)
+  🏗️  architect
+      → System design, scalability, architectural decisions
 
-# Good (fast)
-Task(
-  subagent_type="everything-claude-code:code-reviewer",
-  prompt="Review changes in src/payment/PaymentService.java"
-)
+  📝 planner
+      → Implementation planning for complex features
+
+  🗄️  database-reviewer
+      → Query optimization, schema design, PostgreSQL
+
+  🔒 security-reviewer
+      → OWASP Top 10, vulnerabilities, secrets detection
+
+🔀 Orchestration Suggestion:
+
+  Sequential (Planning First):
+    1. architect/planner → Design system
+    2. security-reviewer → Review security
+    3. Implement code
+    4. tdd-guide → Ensure test coverage
 ```
 
 ---
 
-### 2. Model Selection
+## Testing the Router
 
-Use appropriate model for task:
-
-```bash
-# Critical security review → Opus (thorough)
-Task(
-  subagent_type="everything-claude-code:security-reviewer",
-  model="opus",
-  prompt="..."
-)
-
-# Build error fix → Haiku (fast)
-Task(
-  subagent_type="everything-claude-code:build-error-resolver",
-  model="haiku",
-  prompt="..."
-)
-```
-
----
-
-### 3. Parallel Execution
-
-Run independent agents in parallel:
+### Manual Test
 
 ```bash
-# Sequential (slow) - 30 seconds
-Task(subagent_type="code-reviewer", ...)      # 10s
-Task(subagent_type="security-reviewer", ...)  # 10s
-Task(subagent_type="go-reviewer", ...)        # 10s
-
-# Parallel (fast) - 10 seconds
-Task(subagent_type="code-reviewer", ...)
-Task(subagent_type="security-reviewer", ...)
-Task(subagent_type="go-reviewer", ...)
-# All run simultaneously
-```
-
----
-
-## Creating Custom Agent Skills
-
-### Template
-
-Create `skills/[agent-name]/SKILL.md`:
-
-```markdown
-# [agent-name]
-
-[Description of what this skill does]
-
-## Trigger
-- User says "[trigger phrase]"
-- User invokes `/[command]`
-- Hook detects [pattern]
-
-## Workflow
-1. [Preparation step]
-2. Spawn Task(subagent_type="everything-claude-code:[agent-name]", prompt="...")
-3. [Parse agent output]
-4. [Take action based on output]
-5. [Report results]
-
-## Parameters
-- `scope`: Limit review to specific files (default: all changed files)
-- `severity`: Minimum severity to report (default: MEDIUM)
-
-## Example
-User: "/[command]"
-Agent: [Shows expected output]
-```
-
----
-
-## Testing Agent Integration
-
-### 1. Test Hook Triggers
-
-```bash
-# Create test change
-echo "// TODO: security risk" > test.java
-git add test.java
-
-# Run hook manually
 cd ~/team-claude-config
-./hooks/pre-commit/security-check.sh
 
-# Expected: Should detect pattern and suggest security-reviewer
+# Test various prompts
+./hooks/pre-user-prompt/agent-router.sh "Implement payment API"
+./hooks/pre-user-prompt/agent-router.sh "Fix Go build errors"
+./hooks/pre-user-prompt/agent-router.sh "Design scalable architecture"
+./hooks/pre-user-prompt/agent-router.sh "Write E2E tests for checkout"
+```
+
+### Expected Behavior
+
+**Security Task:**
+```bash
+$ ./hooks/pre-user-prompt/agent-router.sh "Add authentication"
+
+📋 Recommended Agents:
+  🔒 security-reviewer
+```
+
+**Database Task:**
+```bash
+$ ./hooks/pre-user-prompt/agent-router.sh "Create migration"
+
+📋 Recommended Agents:
+  🗄️  database-reviewer
+```
+
+**Go Task:**
+```bash
+$ ./hooks/pre-user-prompt/agent-router.sh "Fix goroutine leak"
+
+📋 Recommended Agents:
+  🐹 go-reviewer
 ```
 
 ---
 
-### 2. Test Agent Directly
+## Integration with Claude
 
-```bash
-# In Claude Code session:
-Task(
-  subagent_type="everything-claude-code:code-reviewer",
-  prompt="Review the test file for security issues"
-)
+### Automatic Invocation
 
-# Expected: Agent returns security findings
+Claude Code reads hook output and should proactively invoke recommended agents:
+
+```
+User: "Implement OAuth2"
+     ↓
+Hook: Recommends security-reviewer, architect
+     ↓
+Claude: Sees recommendations
+     ↓
+Claude: Auto-invokes agents
+     ↓
+Task(subagent_type="everything-claude-code:architect", ...)
+Task(subagent_type="everything-claude-code:security-reviewer", ...)
+```
+
+### Manual Override
+
+User can always invoke agents directly:
+
+```
+User: "Implement OAuth2 but skip architecture review"
+     ↓
+Claude: Skips architect, invokes only security-reviewer
 ```
 
 ---
 
-### 3. Test Skill Wrapper
+## Customization
+
+### Add Custom Keywords
+
+Edit `hooks/pre-user-prompt/agent-router.sh`:
 
 ```bash
-# In Claude Code session:
-/go-review
+# Add your domain-specific keywords
+if echo "$PROMPT_LOWER" | grep -qE "(your-keyword|your-pattern)"; then
+    AGENTS+=("your-preferred-agent")
+fi
+```
 
-# Expected: Skill triggers go-reviewer agent and reports findings
+**Example: Add Custom Business Logic Keywords**
+```bash
+# Business logic patterns
+if echo "$PROMPT_LOWER" | grep -qE "(loan approval|credit check|underwriting)"; then
+    AGENTS+=("architect")
+    AGENTS+=("security-reviewer")
+    AGENTS+=("database-reviewer")
+fi
+```
+
+---
+
+### Adjust Agent Priority
+
+Reorder recommendations by priority:
+
+```bash
+# High priority agents first
+PRIORITY_AGENTS=()
+STANDARD_AGENTS=()
+
+# Security is always high priority
+if [[ " ${AGENTS[@]} " =~ " security-reviewer " ]]; then
+    PRIORITY_AGENTS+=("security-reviewer")
+fi
+
+# Then output in order
+for agent in "${PRIORITY_AGENTS[@]}" "${STANDARD_AGENTS[@]}"; do
+    # Display agent
+done
+```
+
+---
+
+## Limitations
+
+### Current Limitations
+
+1. **Keyword-Based Only**
+   - No semantic understanding
+   - Can miss context
+   - May over-trigger on ambiguous terms
+
+2. **No Multi-Language Detection**
+   - Can't detect "Go and Python" → routes to both
+   - May recommend conflicting agents
+
+3. **No Complexity Scoring**
+   - Doesn't integrate with complexity-assessment.sh
+   - Parallel routing complexity check
+
+4. **Static Rules**
+   - No learning from past routing decisions
+   - No feedback loop
+
+### Future Enhancements
+
+**Phase 2: Semantic Analysis**
+- Use LLM to understand task intent
+- Context-aware routing
+- Better multi-language detection
+
+**Phase 3: Learning System**
+- Track which agents were useful
+- Adjust routing rules based on outcomes
+- Team-specific patterns
+
+**Phase 4: Predictive Routing**
+- Predict agent needs before implementation
+- Suggest agent combinations
+- Estimate agent execution time
+
+---
+
+## Metrics
+
+Track router effectiveness:
+
+| Metric | Target | How to Measure |
+|--------|--------|----------------|
+| Routing accuracy | >80% | Did recommended agents find issues? |
+| False positives | <20% | Were agents unnecessary? |
+| Coverage | >90% | Did router catch all needed agents? |
+| User satisfaction | >4/5 | Post-task survey |
+
+**Tracking:**
+```bash
+# Log router recommendations
+echo "Task: $USER_PROMPT" >> ~/claude-agent-router.log
+echo "Agents: ${AGENTS[@]}" >> ~/claude-agent-router.log
+echo "Timestamp: $(date)" >> ~/claude-agent-router.log
+echo "---" >> ~/claude-agent-router.log
 ```
 
 ---
 
 ## Troubleshooting
 
-### Hook Not Triggering Agent
+### Router Not Triggering
 
 **Check:**
-1. Hook is executable (`chmod +x hooks/pre-commit/*.sh`)
-2. Pattern matching is correct (test with `grep`)
-3. Agent name is correct (`everything-claude-code:[agent-name]`)
+1. Hook is executable: `ls -la hooks/pre-user-prompt/agent-router.sh`
+2. Hook is in correct location: `~/team-claude-config/hooks/pre-user-prompt/`
+3. Claude Code settings point to hooks directory
 
-**Debug:**
+**Fix:**
 ```bash
-# Add debug output to hook
-echo "DEBUG: Triggering agent" >&2
+chmod +x hooks/pre-user-prompt/agent-router.sh
 ```
 
 ---
 
-### Agent Times Out
+### Wrong Agents Recommended
 
 **Solutions:**
-1. Reduce scope (specific files instead of repo)
-2. Use lighter model (haiku instead of opus)
-3. Increase timeout in Task call
+1. Refine keyword patterns in router
+2. Add domain-specific keywords
+3. Adjust orchestration logic
+4. Report false positives to improve rules
 
 ---
 
-### Agent Misses Issues
+### Too Many Agents
 
 **Solutions:**
-1. Layer multiple agents (code-reviewer + security-reviewer)
-2. Provide more context in prompt
-3. Run agent directly to debug
-4. Check agent version (may need update)
+1. Increase keyword specificity
+2. Add exclusion rules
+3. Prioritize agents (show top 3)
+
+**Example:**
+```bash
+# Only show top 3 agents
+AGENTS=($(printf '%s\n' "${AGENTS[@]}" | head -3))
+```
 
 ---
 
-## Metrics to Track
+## FAQ
 
-| Metric | Target | Purpose |
-|--------|--------|---------|
-| Hook → Agent trigger rate | 10-20% | Not over-triggering |
-| Agent execution time | <30s | Performance |
-| Issues caught by agents | >80% | Effectiveness |
-| False positives | <20% | Accuracy |
-| Iterations to LGTM | <3 | Efficiency |
+**Q: Does router automatically invoke agents?**
+A: No, router **recommends** agents. Claude Code should read recommendations and proactively invoke them.
+
+**Q: Can I disable router for specific tasks?**
+A: Yes, router suggestions are just recommendations. Claude or user can ignore them.
+
+**Q: How does router integrate with complexity assessment?**
+A: They're independent. Complexity hook triggers auto-review-loop. Router suggests specialized agents.
+
+**Q: Can router learn from past decisions?**
+A: Not yet. Current version uses static rules. Learning system planned for Phase 3.
+
+**Q: What if router recommends conflicting agents?**
+A: Router shows all matches. Claude should select appropriate agents based on task context.
 
 ---
 
 **Last Updated:** 2026-05-18
-**Integration Version:** 1.0
+**Router Version:** 1.0
