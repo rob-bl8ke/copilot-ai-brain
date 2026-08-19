@@ -1,0 +1,481 @@
+# How Hooks Work in Claude Code
+
+Complete guide to understanding when and how team hooks execute.
+
+---
+
+## Hook Execution Flow
+
+### 1. UserPromptSubmit Hooks (Pre-Prompt)
+
+**When**: BEFORE Claude processes your prompt
+
+**Triggers**: Every time you submit a message
+
+**Example Flow**:
+```
+You: "implement new authentication feature"
+     ↓
+[UserPromptSubmit hook runs]
+     ↓
+🔍 Pre-flight task complexity assessment...
+⚡ MODERATE COMPLEXITY
+     ↓
+[Claude processes your request]
+     ↓
+Claude: "I'll implement authentication..."
+```
+
+**Team Hooks**:
+- `task-complexity-check.sh` - Assesses complexity, recommends auto-review-loop
+- `agent-router.sh` - Routes to specialized agents based on task type
+
+---
+
+### 2. PostToolUse Hooks (Post-Code/Post-Action)
+
+**When**: AFTER a tool completes successfully
+
+**Triggers**:
+- Write tool creates a file
+- Edit tool modifies a file
+- Bash tool runs a git commit command
+
+#### PostToolUse (Write|Edit) - Code Quality Checks
+
+**Triggers**: After Write or Edit tool completes
+
+**Requires**: Git repository with commits
+
+**Example Flow**:
+```
+Claude uses Write tool to create CustomerController.java
+     ↓
+[Write tool completes]
+     ↓
+[PostToolUse hooks run automatically]
+     ↓
+Checking SOLID principles...
+════════════════════════════════════════════════
+🧩 SOLID Principles Checklist
+1️⃣  Single Responsibility Principle (SRP)
+...
+     ↓
+Reviewing domain model...
+HOOK: Application service changes detected
+...
+     ↓
+Checking API standards conformance...
+════════════════════════════════════════════════
+🔍 API Standards Conformance Check
+⚠️  Missing required request headers: ...
+     ↓
+[You see all hook output in your terminal]
+```
+
+**Team Hooks**:
+- `solid-check.sh` - SOLID principles checklist
+- `domain-review.sh` - DDD pattern compliance
+- `api-standards-check.sh` - REST API standards conformance
+
+**Important**: These hooks check `git diff HEAD~1..HEAD`, so they need:
+1. ✅ Git repository initialized (`git init`)
+2. ✅ Files committed (`git commit`)
+3. ✅ At least one previous commit to compare against
+
+If no commits exist, hooks exit silently (no output).
+
+---
+
+#### PostToolUse (Bash git commit) - Pre-Commit Checks
+
+**Triggers**: After Bash tool runs a `git commit` command
+
+**Example Flow**:
+```
+Claude runs: git commit -m "Add customer API"
+     ↓
+[Bash tool completes]
+     ↓
+[PostToolUse hooks run automatically]
+     ↓
+Running security checks...
+HOOK: API endpoint changes detected
+TRIGGER: Security review required
+     ↓
+Verifying test coverage...
+HOOK: Checking test coverage...
+     ↓
+Validating schemas...
+     ↓
+Checking architecture compliance...
+     ↓
+[Commit succeeds if all checks pass]
+```
+
+**Team Hooks**:
+- `security-check.sh` - Detects API/auth/SQL changes, triggers security review
+- `test-coverage.sh` - Verifies 80% minimum coverage
+- `schema-validation.sh` - Kafka schema validation
+- `architecture-check.sh` - Clean architecture compliance
+
+---
+
+## Hook Requirements by Type
+
+### Complexity Hooks (UserPromptSubmit)
+```bash
+✅ No requirements
+✅ Always runs
+✅ Analyzes prompt text only
+```
+
+### Code Quality Hooks (PostToolUse Write|Edit)
+```bash
+✅ Git repository initialized
+✅ At least 2 commits (need HEAD~1)
+✅ Java files changed in last commit
+```
+
+**Setup**:
+```bash
+cd ~/your-project
+git init
+git add .
+git commit -m "Initial commit"
+
+# Now hooks will work on subsequent commits
+```
+
+### Pre-Commit Hooks (PostToolUse Bash git commit)
+```bash
+✅ Git repository
+✅ Staged files (git add)
+✅ Running git commit command
+```
+
+---
+
+## Why Hooks Might Not Appear
+
+### Issue 1: No Git Repository
+```bash
+# Hook checks this and exits silently:
+git diff HEAD~1..HEAD --name-only 2>/dev/null
+
+# If no git repo → returns nothing → hook exits
+```
+
+**Solution**: Initialize git
+```bash
+cd ~/your-project
+git init
+git add .
+git commit -m "Initial setup"
+```
+
+---
+
+### Issue 2: No Recent Commit
+```bash
+# Hook needs HEAD~1 (previous commit)
+CHANGED_FILES=$(git diff HEAD~1..HEAD --name-only)
+
+# If only one commit exists → HEAD~1 doesn't exist → no output
+```
+
+**Solution**: Make at least 2 commits
+```bash
+git commit -m "First commit"
+# Make changes
+git add .
+git commit -m "Second commit"  # Now hooks work
+```
+
+---
+
+### Issue 3: Wrong File Type
+```bash
+# API standards hook only checks REST annotations
+if ! echo "$DIFF_CONTENT" | grep -qE "@RestController"; then
+    exit 0  # Exits silently if no REST API
+fi
+```
+
+**Triggers on**: Java files with `@RestController`, `@GetMapping`, etc.
+
+**Doesn't trigger on**: Plain Java classes without REST annotations
+
+---
+
+### Issue 4: Hook Output Not Visible in Conversation
+
+**In normal Claude Code CLI**:
+- Hooks run automatically
+- Output displays in your terminal
+- You see status messages and results
+
+**In this conversation**:
+- Hooks run but output isn't captured in tool results
+- Hook output goes to Claude Code interface (not chat)
+- You can manually run hooks to see output:
+
+```bash
+cd ~/your-project
+bash ~/team-claude-config/hooks/post-code/api-standards-check.sh
+```
+
+---
+
+## Testing Hooks Manually
+
+### Test Complexity Hook
+```bash
+export CLAUDE_USER_PROMPT="implement authentication system"
+bash ~/team-claude-config/hooks/pre-user-prompt/task-complexity-check.sh
+```
+
+Expected output:
+```
+🔍 Pre-flight task complexity assessment...
+
+Estimated Complexity Score: 3
+
+⚡ MODERATE COMPLEXITY
+```
+
+---
+
+### Test Code Quality Hooks
+
+**Setup**:
+```bash
+cd ~/test-project
+git init
+git add .
+git commit -m "Initial"
+
+# Make a change to a Java file
+echo "class Test {}" > TestController.java
+git add .
+git commit -m "Add controller"
+```
+
+**Run hooks**:
+```bash
+# SOLID check
+bash ~/team-claude-config/hooks/post-code/solid-check.sh
+
+# Domain review
+bash ~/team-claude-config/hooks/post-code/domain-review.sh
+
+# API standards
+bash ~/team-claude-config/hooks/post-code/api-standards-check.sh
+```
+
+---
+
+### Test Pre-Commit Hooks
+
+**Setup**:
+```bash
+cd ~/test-project
+echo "changes" >> file.txt
+git add .
+# Don't commit yet
+```
+
+**Run hooks** (simulates post-commit):
+```bash
+bash ~/team-claude-config/hooks/pre-commit/security-check.sh
+bash ~/team-claude-config/hooks/pre-commit/test-coverage.sh
+```
+
+---
+
+## Hook Status Messages
+
+When hooks run in Claude Code, you see status messages:
+
+### Before Hook Runs
+```
+"statusMessage": "Checking SOLID principles..."
+```
+
+Displays in your terminal while hook executes.
+
+### After Hook Completes
+Hook output is shown (the ════════ banners and checklists).
+
+### If Hook Exits Early
+No output (silent exit when conditions not met).
+
+---
+
+## Debugging Hooks
+
+### Check Hook is Configured
+```bash
+cat ~/.claude/settings.json | grep -A 10 "hooks"
+```
+
+Should show PostToolUse hooks for Write|Edit and Bash.
+
+### Check Hook is Executable
+```bash
+ls -la ~/team-claude-config/hooks/post-code/
+```
+
+Should show `-rwxr-xr-x` (executable).
+
+### Run Hook with Debug
+```bash
+cd ~/your-project
+bash -x ~/team-claude-config/hooks/post-code/api-standards-check.sh
+```
+
+Shows every line executed with `+` prefix.
+
+### Check Git Setup
+```bash
+# Check git repo exists
+git status
+
+# Check commits exist
+git log --oneline -3
+
+# Check what changed in last commit
+git diff HEAD~1..HEAD --name-only
+```
+
+### Check Pattern Matching
+```bash
+# What files changed?
+git diff HEAD~1..HEAD --name-only
+
+# Do they contain REST annotations?
+git diff HEAD~1..HEAD | grep -E "@RestController"
+```
+
+---
+
+## Hook Execution Environment
+
+### Environment Variables Available
+
+Hooks have access to:
+- `CLAUDE_USER_PROMPT` - User's prompt text (UserPromptSubmit only)
+- `CLAUDE_TOOL_NAME` - Tool that triggered hook (PostToolUse only)
+- `CLAUDE_WORKING_DIR` - Current working directory
+- Standard shell environment
+
+### Current Working Directory
+
+Hooks run in the project directory where Claude Code was started:
+```bash
+# If you ran: cd ~/my-project && claude
+# Hooks run in: ~/my-project
+```
+
+### Exit Codes
+
+- `exit 0` - Hook succeeded (allows operation to continue)
+- `exit 1+` - Hook failed (may block operation depending on hook type)
+
+**Note**: Current team hooks always exit 0 (advisory, not blocking).
+
+---
+
+## Expected Behavior Summary
+
+### Normal Claude Code Session
+
+```
+1. You type prompt
+2. UserPromptSubmit hook runs (complexity check)
+3. You see hook output immediately
+4. Claude processes prompt
+5. Claude uses Write/Edit tool
+6. PostToolUse hooks run automatically
+7. You see hook output (SOLID, domain, API checks)
+8. Claude continues with response
+```
+
+### This Conversation
+
+```
+1. You type prompt
+2. UserPromptSubmit hook runs ✅ (you saw complexity check)
+3. I use Write/Edit tool ✅
+4. PostToolUse hooks run ❓ (but output not captured in chat)
+5. You can manually run hooks to see output
+```
+
+---
+
+## Verification Checklist
+
+To confirm hooks work in your environment:
+
+- [ ] Check settings: `cat ~/.claude/settings.json | grep hooks`
+- [ ] Check executable: `ls -la ~/team-claude-config/hooks/post-code/*.sh`
+- [ ] Create git repo: `cd ~/test && git init`
+- [ ] Make 2 commits: `git commit -m "First" && git commit -m "Second"`
+- [ ] Run hook manually: `bash ~/team-claude-config/hooks/post-code/solid-check.sh`
+- [ ] See output: Should display SOLID checklist
+
+---
+
+## Troubleshooting
+
+### "No output when I run hook"
+
+**Cause**: Hook exited early (no matching files)
+
+**Check**:
+```bash
+git diff HEAD~1..HEAD --name-only
+# Do you see Java files?
+
+git diff HEAD~1..HEAD | grep -E "@RestController"
+# Do you see REST annotations?
+```
+
+### "Hooks not running automatically"
+
+**Cause**: Hooks configuration not loaded
+
+**Fix**:
+```bash
+# Check settings
+cat ~/.claude/settings.json
+
+# Should have hooks section with PostToolUse
+```
+
+### "Hook shows errors"
+
+**Cause**: Missing dependencies or permissions
+
+**Check**:
+```bash
+# Test hook directly
+bash ~/team-claude-config/hooks/post-code/api-standards-check.sh
+
+# Check permissions
+ls -la ~/team-claude-config/hooks/post-code/*.sh
+# Should show -rwxr-xr-x
+```
+
+---
+
+## Reference
+
+- **Hook Configuration**: `~/.claude/settings.json`
+- **Hook Scripts**: `~/team-claude-config/hooks/`
+- **Hook Documentation**: `~/team-claude-config/docs/CONFIGURATION.md`
+
+---
+
+**Version**: 1.0
+**Last Updated**: 2026-05-18
