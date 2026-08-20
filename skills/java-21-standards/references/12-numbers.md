@@ -19,8 +19,8 @@
 
 * Gratuitous boxing/unboxing.
 * Implicit narrowing conversions.
+* Magic numbers: unnamed numeric literals embedded in logic instead of a named constant or a self-explanatory domain type.
 
 ### NEVER
 
 * Use floating-point arithmetic where exact monetary values are required.
-
