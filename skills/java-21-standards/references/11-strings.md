@@ -19,8 +19,8 @@
 
 * Manually concatenating filesystem paths.
 * Creating a `StringBuilder` for every tiny concatenation.
+* Stringly-typed code: using a raw `String` to represent a constrained domain concept (a status, code, or identifier with a fixed set of valid values) that deserves its own type or enum.
 
 ### NEVER
 
 * Use `==` to perform logical String equality.
-
