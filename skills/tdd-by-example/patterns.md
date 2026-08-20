@@ -14,6 +14,7 @@ Reference vocabulary for explaining TDD design choices. The main SKILL.md covers
 - **Fake It** — return a hardcoded literal to get green fast; defer the real generalization until a second test forces it.
 - **Triangulate** — add a second example with different concrete values specifically to force a hardcoded fake into a general rule. Use when the right abstraction isn't obvious yet.
 - **Obvious Implementation** — when you're confident of the real logic and it's short, just write it directly instead of faking first.
+- **Property-Based Testing** — declare the invariant the code must hold and let a framework (jqwik, Hypothesis, fast-check, proptest) generate inputs to find counterexamples. Extends Triangulate to cover wide input domains without hand-picking examples. Coexists with example-based tests rather than replacing them.
 
 ## Green bar / refactoring patterns
 
@@ -38,3 +39,11 @@ Beck revisits familiar OO design patterns not as things to apply up front, but a
 - **Template Method / Imposter (Null Object)** — arise from removing conditional duplication around "does this thing exist / apply or not."
 
 The point of this section isn't the patterns themselves — it's the reminder that in this workflow, patterns are a *result* of following the cycle, not a plan imposed on it.
+
+## Post-Beck extensions
+
+Patterns and techniques that emerged after the book and have proven durable enough to enter mainstream TDD practice:
+
+- **Outside-In / Double Loop** (Freeman & Pryce, 2009) — start with a failing acceptance test, then drive inner unit-test loops to make it pass. The outer test defines "done" for a feature slice; the inner loops build each collaborator. Preferred when the feature cuts across layers.
+- **Characterization Test** (Feathers, 2004) — pin existing behavior before changing legacy code. Write a test, let it fail, use the actual output as the expected value. The goal is a safety net, not correctness verification. Bridge from untested code to the normal TDD cycle.
+- **Test Desiderata** (Beck, 2019) — twelve properties of good tests (isolated, composable, deterministic, fast, writable, readable, behavioral, structure-insensitive, predictive, inspiring, automated). A diagnostic checklist when a test feels wrong but the reason isn't obvious.
