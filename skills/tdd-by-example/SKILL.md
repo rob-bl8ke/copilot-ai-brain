@@ -50,13 +50,14 @@ Choose the *next* test, not the hardest or most complete one. If a test feels to
 
 Make the test's expected value **obvious at a glance** — a reader shouldn't have to compute anything to check it. `assertEqual(parse("5m"), 300)` is evident; `assertEqual(parse("5m"), 5 * 60)` makes the reader redo the arithmetic the test was supposed to already do.
 
-## Getting to green: three moves
+## Getting to green: four moves
 
-These are the three legitimate ways to make a failing test pass. Pick whichever fits — they are not ranked, and mixing them across a session is normal.
+These are the four legitimate ways to make a failing test pass. Pick whichever fits — they are not ranked, and mixing them across a session is normal.
 
 - **Fake It.** Return a hardcoded literal that satisfies the test (`return 300`). This is not a cop-out — it's the fastest way to get a green bar when you're unsure of the real logic, and it defers design decisions until a second test forces generalization. Always intend to remove the fake as soon as a second, differently-valued test arrives.
 - **Obvious Implementation.** If the real implementation is short and you're confident, just write it. Don't perform Fake It theater for something genuinely trivial. If a supposedly-obvious implementation causes an unexpected red bar, that's useful information — drop back to Fake It and smaller steps.
 - **Triangulate.** When neither of the above feels safe (the general rule isn't clear yet), add a *second* test with different concrete inputs. Two data points are what force a hardcoded fake into a real, general rule. Use this when you notice you're guessing at the abstraction rather than seeing it.
+- **Property-Based Testing.** When manual triangulation would need many examples to cover the input space (combinatorial inputs, mathematical invariants, round-trip serialization), describe the *property* the code must hold and let a property-based framework generate hundreds of inputs to find counterexamples. This extends Triangulate — instead of hand-picking two data points, you declare the rule and the framework hunts for violations. Use a property-based library appropriate to the ecosystem: `jqwik` (Java), `Hypothesis` (Python), `fast-check` (JS/TS), `proptest` (Rust), `testing/quick` (Go). Property tests coexist with example-based tests — they don't replace them. Use example tests for the readable, documented cases; use property tests when you need confidence across a wide input domain that hand-picked examples can't cover.
 
 ## Refactoring: only on green
 
@@ -148,3 +149,70 @@ Green: add validation for repeated-subtraction patterns. [run, all pass]
 ```
 
 Note the shape: fake first, a second data point forces the real rule, obvious implementation once the rule is clear, refactor once green, and the test list drives what comes next rather than trying to design the whole function up front.
+
+## Outside-In TDD (Double Loop)
+
+Beck's book works inside-out: start with the smallest unit, build up. The outside-in approach (Freeman & Pryce, *Growing Object-Oriented Software, Guided by Tests*) starts from the other end and is often the better fit when building features that span multiple layers (API → service → repository).
+
+The workflow adds an **outer loop** around the core cycle:
+
+```
+1. Write a failing acceptance/integration test for the feature's observable behavior.
+   This test stays red while you work — it's the goal, not the current step.
+2. Drop into inner red-green-refactor loops of unit tests to build each collaborator
+   the acceptance test needs.
+3. When enough inner loops have gone green, the outer acceptance test goes green too.
+4. Refactor across the layers now that the whole slice is passing.
+```
+
+**When to use outside-in vs. classical:**
+
+- Outside-in when the feature cuts across layers and you want the integration test to define "done" (typical for API endpoints, request handlers, or any user-facing slice).
+- Classical/inside-out when building a self-contained algorithm, utility, or domain object with no upstream caller yet.
+- If in doubt, ask: "do I know who will call this code and what they expect?" If yes, start from the caller's perspective (outside-in). If no, start from the domain logic (classical).
+
+Outside-in naturally uses mocks/stubs for collaborators that don't exist yet — the inner loop then replaces those with real implementations. This is fine as a scaffolding strategy; just don't let mocks survive into the final test suite for collaborators that now have real implementations. The acceptance test running against the real stack is what provides that confidence.
+
+## Characterization testing (brownfield TDD)
+
+The core cycle assumes greenfield — you're building new behavior. When the task is to change *existing* code that has no tests, the cycle needs a preamble: characterization testing, from Feathers' *Working Effectively with Legacy Code*.
+
+The goal is not to verify correctness — the existing code may be buggy. The goal is to **pin current behavior** so refactoring doesn't silently change it.
+
+```
+1. Pick the code you need to change.
+2. Write a test that calls it with a representative input.
+3. Let the test fail — use the actual output as the expected value.
+4. Repeat until the area you plan to change is covered by tests that pass.
+5. Now apply the normal red-green-refactor cycle for the new behavior,
+   with the characterization tests as your safety net.
+```
+
+Key differences from the normal cycle:
+- You write the assertion *after* seeing the output, not before — this is intentional, not cheating.
+- A characterization test that passes on the first run is still valuable — it documents a behavior, even if you expected it.
+- If a characterization test reveals a bug, don't fix it yet — note it on the test list and stay focused on pinning behavior. Fix bugs as their own red-green-refactor cycle once the safety net is in place.
+
+Use characterization testing whenever the user asks to "add tests to existing code," "refactor this safely," or "change this legacy code." It's the bridge from untested code to the normal TDD cycle.
+
+## Test desiderata
+
+Kent Beck refined his thinking on test quality into 12 properties (*Test Desiderata*, 2019). Use these as a quick checklist when a test feels wrong but you can't articulate why, or when reviewing whether a test is worth keeping:
+
+| Property | What it means |
+|---|---|
+| **Isolated** | Tests don't affect each other — order and parallelism don't matter. |
+| **Composable** | Can run any subset of the suite and trust the results. |
+| **Deterministic** | Same code, same result, every time. No flaky tests. |
+| **Fast** | Fast enough to run after every small change without breaking flow. |
+| **Writable** | Easy to write — if writing a test feels like a chore, the design may need to change. |
+| **Readable** | A failing test tells you what went wrong without reading the implementation. |
+| **Behavioral** | Tests assert observable outcomes, not implementation details. |
+| **Structure-insensitive** | Refactoring the code doesn't break the test (unless behavior changed). |
+| **Predictive** | A passing suite gives real confidence the code works in production. |
+| **Inspiring** | A passing test makes you confident; a failing test makes you want to fix the code, not delete the test. |
+| **Automated** | No manual steps — the suite runs and reports without human intervention. |
+
+These properties tension against each other (fast vs. predictive, isolated vs. composable). The point is not to maximize all twelve simultaneously but to notice which ones a given test is weak on and decide whether that's acceptable for its role.
+
+Not every test needs to score high on all twelve. A fast isolated unit test might be low on predictive; a slow integration test might be low on fast but high on predictive. The suite as a whole should cover the full spectrum.
