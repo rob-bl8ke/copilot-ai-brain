@@ -44,7 +44,7 @@ Keep these rules active before writing code:
 
 ## Agent Guardrails
 
-These rules apply specifically to AI-agent-generated code and distil the most common Spring failure modes. Full detail in [section 39](./references/39-spring-specific-ai-anti-patterns.md), [40](./references/40-agent-change-discipline.md), and [41](./references/41-skill-boundaries.md).
+These rules apply specifically to AI-agent-generated code and distil the most common Spring failure modes. Full detail in [section 39](./references/39-spring-specific-ai-anti-patterns.md) and [40](./references/40-agent-change-discipline.md).
 
 ### Never generate layer explosions
 
@@ -169,8 +169,8 @@ Detailed Spring Boot rules live in section-specific files under `references/`. L
 | [29. Health indicators](./references/29-health-indicators.md) | Designing liveness/readiness checks and cheap health indicators. |
 | [30. Dependency management](./references/30-dependency-management.md) | Editing Maven dependencies, starters, managed versions, or overrides. |
 | [31. Starter selection](./references/31-starter-selection.md) | Choosing Spring Boot starters without adding broad dependencies just in case. |
-| [32. Testing strategy](./references/32-testing-strategy.md) | Selecting plain unit tests, focused Spring tests, integration tests, or `@SpringBootTest`. Defers to `java-21-springboot-unit-testing`, `java-21-springboot-integration-tests`, and `java-21-springboot-e2e-tests` skills when present. |
-| [33. Testcontainers](./references/33-testcontainers.md) | Using real external systems in integration tests where correctness depends on them. Defers to `java-21-springboot-integration-tests` and `java-21-springboot-e2e-tests` skills when present. |
+| [32. Testing strategy](./references/32-testing-strategy.md) | Selecting plain unit tests, focused Spring tests, integration tests, or `@SpringBootTest`. Defers to `unit-testing`, `db-core-jpa-integration-tests`, and `db-core-e2e-tests` skills when present. |
+| [33. Testcontainers](./references/33-testcontainers.md) | Using real external systems in integration tests where correctness depends on them. Defers to `db-core-jpa-integration-tests` and `db-core-e2e-tests` skills when present. |
 | [34. Mocking Spring](./references/34-mocking-spring.md) | Choosing what to mock and avoiding tests coupled to Spring internals. Defers to `unit-testing` skill when present. |
 | [35. Package organization](./references/35-package-organization.md) | Placing application classes and avoiding universal package architecture mandates. |
 | [36. Annotation restraint](./references/36-annotation-restraint.md) | Adding annotations or reviewing annotation-heavy code. |
@@ -178,7 +178,6 @@ Detailed Spring Boot rules live in section-specific files under `references/`. L
 | [38. Framework escape hatches](./references/38-framework-escape-hatches.md) | Considering low-level APIs such as `ApplicationContext`, `BeanFactory`, or `Environment`. |
 | [39. Spring-specific AI anti-patterns](./references/39-spring-specific-ai-anti-patterns.md) | Preventing generated layer explosions, speculative annotations, DTOs, mappers, events, or profiles. |
 | [40. Agent change discipline](./references/40-agent-change-discipline.md) | Scoping AI-generated Spring changes, preserving versions, wiring, config, and build correctness. |
-| [41. Skill boundaries](./references/41-skill-boundaries.md) | Deciding what belongs in separate Java testing, Spring Data, Security, Kafka, Maven, or architecture skills. |
 
 ## Workflow
 
