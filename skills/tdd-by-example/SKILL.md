@@ -1,6 +1,6 @@
 ---
 name: tdd-by-example
-description: Guides Claude through Kent Beck's Test-Driven Development workflow (Red-Green-Refactor, Fake It, Triangulate, Obvious Implementation) when writing or modifying code with real, executable tests. Use this skill whenever the user asks to "TDD" something, "write tests first," "test-driven," build a function/class/feature "with tests," fix a bug "with a regression test," or describes new behavior to implement in a codebase where a test runner is available or can be set up — even if they don't say the words "test-driven development" explicitly. Also use it when the user asks Claude to review whether existing code was built test-first, or to convert an existing implementation into a test-first workflow going forward. Do NOT use for one-off scripts, throwaway data analysis, or pure prototypes where the user has said speed matters more than a test suite — see the Escape Hatch section instead.
+description: Guides the TDD workflow (Red-Green-Refactor, Fake It, Triangulate, Obvious Implementation) with real, executable tests. Use when the user asks to "TDD" something, "write tests first," build a feature "with tests," fix a bug "with a regression test," or implement new behavior where a test runner is available — even without the words "test-driven development." Also use to review whether existing code was built test-first or to convert an implementation to a test-first workflow. Do NOT use for one-off scripts, throwaway analysis, or prototypes where speed matters more than a test suite. For Java projects, apply alongside the unit-testing skill for Java-specific test style (AssertJ, BDD naming, mocking patterns).
 ---
 
 # Test-Driven Development, by Example
@@ -204,6 +204,7 @@ Kent Beck refined his thinking on test quality into 12 properties (*Test Desider
 | **Isolated** | Tests don't affect each other — order and parallelism don't matter. |
 | **Composable** | Can run any subset of the suite and trust the results. |
 | **Deterministic** | Same code, same result, every time. No flaky tests. |
+| **Specific** | A failure points at one narrow cause — you know where to look without bisecting. |
 | **Fast** | Fast enough to run after every small change without breaking flow. |
 | **Writable** | Easy to write — if writing a test feels like a chore, the design may need to change. |
 | **Readable** | A failing test tells you what went wrong without reading the implementation. |
